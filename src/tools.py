@@ -15,6 +15,12 @@ from .rag import consultar_politicas
 _database: sqlite3.Connection | None = None
 
 
+def configurar_database(database: sqlite3.Connection) -> None:
+    """Use a conexao inicializada pela aplicacao nas ferramentas do agente."""
+    global _database
+    _database = database
+
+
 def _get_database() -> sqlite3.Connection:
     global _database
     if _database is None:

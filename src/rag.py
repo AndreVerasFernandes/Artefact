@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import chromadb
@@ -12,7 +13,7 @@ from pypdf import PdfReader
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PDF_NAMES = ("políticas_da_loja.pdf", "politicas_da_loja.pdf")
-CHROMA_DIR = DATA_DIR / "chroma_politicas"
+CHROMA_DIR = DATA_DIR / "chroma_politicas_v2"
 COLLECTION_NAME = "politicas_da_loja"
 
 
@@ -47,11 +48,20 @@ def criar_indice_politicas() -> chromadb.Collection:
     """Extract the PDF and create or refresh its persistent Chroma collection."""
     pdf_path = _find_pdf()
     chunks = _create_chunks(_extract_text(pdf_path))
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    collection = client.get_or_create_collection(
-        name=COLLECTION_NAME,
-        embedding_function=DefaultEmbeddingFunction(),
-    )
+    try:
+        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        collection = client.get_or_create_collection(
+            name=COLLECTION_NAME,
+            embedding_function=DefaultEmbeddingFunction(),
+        )
+    except Exception:
+        if CHROMA_DIR.exists():
+            shutil.rmtree(CHROMA_DIR)
+        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        collection = client.get_or_create_collection(
+            name=COLLECTION_NAME,
+            embedding_function=DefaultEmbeddingFunction(),
+        )
 
     collection.delete(where={"source": str(pdf_path)})
     collection.add(
@@ -60,6 +70,19 @@ def criar_indice_politicas() -> chromadb.Collection:
         metadatas=[{"source": str(pdf_path), "chunk": index} for index in range(len(chunks))],
     )
     return collection
+
+
+def verificar_base_vetorial() -> tuple[bool, str]:
+    """Check whether the persistent policy collection is available and populated."""
+    try:
+        client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        collection = client.get_collection(name=COLLECTION_NAME)
+        count = collection.count()
+        if count == 0:
+            return False, "A colecao de politicas esta vazia."
+        return True, f"{count} trechos de politicas disponiveis."
+    except Exception as error:
+        return False, str(error)
 
 
 def consultar_politicas(query: str, k: int = 3) -> str:
