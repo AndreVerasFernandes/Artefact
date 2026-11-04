@@ -6,7 +6,6 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from src.agent import executar_agente, limpar_historico
-from src.config import GOOGLE_API_KEY
 from src.database import initialize_database
 from src.rag import criar_indice_politicas, verificar_base_vetorial
 from src.tools import configurar_database
